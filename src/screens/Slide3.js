@@ -22,11 +22,11 @@ const Slide3 = ({ navigation }) => {
   }
 
   const handleSkip = () => {
-    navigation.navigate('CameraScreen'); // Navigate to CameraScreen
+    navigation.navigate('Camera'); // Navigate to CameraScreen
   };
 
   const handleNext = () => {
-    navigation.navigate('CameraScreen'); // Navigate to CameraScreen
+    navigation.navigate('Camera'); // Navigate to CameraScreen
   };
 
   return (

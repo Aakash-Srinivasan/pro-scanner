@@ -24,7 +24,7 @@ const Slide1 = () => {
   }
 
   const handleSkip = () => {
-    navigation.navigate('CameraScreen'); // Navigate to CameraScreen
+    navigation.navigate('Camera'); // Navigate to CameraScreen
   };
 
   const handleNext = () => {
