@@ -1,48 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import * as Font from 'expo-font';
+import React, { useEffect } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import Constants from 'expo-constants';
+import Screen from '../components/Screen';
+import { hasCompletedOnboarding } from '../utils/onboarding';
+import { resetTo } from '../utils/navigation';
+import { colors, spacing, typography } from '../theme';
+
+// Read from app.json rather than hardcoded, same as the About section in
+// Help & Guide, so the two can never drift out of sync with each other.
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 const Intro = ({ navigation }) => {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
   useEffect(() => {
-    const loadFonts = async () => {
-      await Font.loadAsync({
-        'Nunito-Regular': require('../../assets/fonts/Nunito-Regular.ttf'),
-        'Nunito-SemiBold': require('../../assets/fonts/Nunito-SemiBold.ttf'),
-        'Nunito-Black': require('../../assets/fonts/Nunito-Black.ttf'),
-      });
-      setFontsLoaded(true);
-    };
+    const timer = setTimeout(async () => {
+      const onboarded = await hasCompletedOnboarding();
+      // Reset (not navigate) so the splash never lingers in history - the
+      // hardware back button would otherwise unwind straight back into it.
+      resetTo(navigation, onboarded ? 'Home' : 'Onboarding');
+    }, 2000);
 
-    loadFonts();
-  }, []);
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      const timer = setTimeout(() => {
-        navigation.navigate('Slide1');
-      }, 2000); 
-
-      return () => clearTimeout(timer); 
-    }
-  }, [fontsLoaded, navigation]);
-
-  if (!fontsLoaded) {
-    return null;
-  }
+    return () => clearTimeout(timer);
+  }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      <Image source={require('../../assets/images/Prologo.png')} />
-      <Text style={styles.title}>Pro Scanner</Text>
-      <Text style={styles.subtitle}>Digital your Doc's</Text>
-    </View>
+    <Screen style={styles.container}>
+      <View style={styles.content}>
+        <Image source={require('../../assets/images/Prologo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.title}>Pro Scanner</Text>
+        <Text style={styles.subtitle}>Digitize your Docs</Text>
+      </View>
+      <Text style={styles.version}>Version {APP_VERSION}</Text>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    alignItems: 'center',
+    paddingBottom: spacing.xxl,
+  },
+  content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -50,16 +47,18 @@ const styles = StyleSheet.create({
   logo: {
     width: 121,
     height: 114,
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 30,
-    fontFamily: 'Nunito-Black',
+    ...typography.title,
   },
   subtitle: {
-    fontFamily: 'Nunito-SemiBold',
-    fontSize: 16,
-    color: '#666',
+    ...typography.subtitle,
+    marginTop: spacing.xs,
+  },
+  version: {
+    ...typography.label,
+    color: colors.textMuted,
   },
 });
 

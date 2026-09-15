@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
+import { ScanSessionProvider } from './src/context/ScanSessionContext';
+import { HistoryProvider } from './src/context/HistoryContext';
 import Intro from './src/screens/Intro';
-import Slide1 from './src/screens/Slide1';
-import Slide2 from './src/screens/Slide2';
-import Slide3 from './src/screens/Slide3';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import CameraScreen from './src/screens/CameraScreen';
+import PageEditScreen from './src/screens/PageEditScreen';
+import PagesScreen from './src/screens/PagesScreen';
 import PreviewScreen from './src/screens/PreviewScreen';
 import DownloadScreen from './src/screens/DownloadScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import HistoryScreen from './src/screens/HistoryScreen';
+import PdfCompressorScreen from './src/screens/PdfCompressorScreen';
+import SignPdfScreen from './src/screens/SignPdfScreen';
+import GuideScreen from './src/screens/GuideScreen';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -20,7 +27,9 @@ function App() {
     const loadFonts = async () => {
       await Font.loadAsync({
         'Nunito-Regular': require('./assets/fonts/Nunito-Regular.ttf'),
+        'Nunito-SemiBold': require('./assets/fonts/Nunito-SemiBold.ttf'),
         'Nunito-Bold': require('./assets/fonts/Nunito-Bold.ttf'),
+        'Nunito-Black': require('./assets/fonts/Nunito-Black.ttf'),
       });
       setFontsLoaded(true);
     };
@@ -33,18 +42,28 @@ function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Intro" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Intro" component={Intro} />
-        <Stack.Screen name="Slide1" component={Slide1} />
-        <Stack.Screen name="Slide2" component={Slide2} />
-        <Stack.Screen name="Slide3" component={Slide3} />
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Camera" component={CameraScreen} />
-        <Stack.Screen name="Preview" component={PreviewScreen} />
-        <Stack.Screen name="Download" component={DownloadScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <HistoryProvider>
+        <ScanSessionProvider>
+          <NavigationContainer>
+            <Stack.Navigator initialRouteName="Intro" screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Intro" component={Intro} />
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Camera" component={CameraScreen} />
+              <Stack.Screen name="PageEdit" component={PageEditScreen} />
+              <Stack.Screen name="Pages" component={PagesScreen} />
+              <Stack.Screen name="Preview" component={PreviewScreen} />
+              <Stack.Screen name="Download" component={DownloadScreen} />
+              <Stack.Screen name="History" component={HistoryScreen} />
+              <Stack.Screen name="PdfCompressor" component={PdfCompressorScreen} />
+              <Stack.Screen name="SignPdf" component={SignPdfScreen} />
+              <Stack.Screen name="Guide" component={GuideScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </ScanSessionProvider>
+      </HistoryProvider>
+    </SafeAreaProvider>
   );
 }
 
