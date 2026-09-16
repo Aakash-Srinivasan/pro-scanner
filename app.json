@@ -1,35 +1,41 @@
 {
   "expo": {
-    "name": "pro-scanner",
+    "name": "Pro Scanner",
     "slug": "pro-scanner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.proscanner.app"
     },
     "android": {
+      "package": "com.proscanner.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       "expo-font",
-      "expo-file-system"
+      "expo-file-system",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/Prologo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/images/Prologo.png",
+            "backgroundColor": "#0F0F11"
+          }
+        }
+      ],
+      "expo-sharing"
     ]
   }
 }
