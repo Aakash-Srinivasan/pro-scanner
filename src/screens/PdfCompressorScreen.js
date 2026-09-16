@@ -10,7 +10,7 @@ import PdfCompressor from '../utils/PdfCompressor';
 import { buildPdfFromRasterPages } from '../utils/buildPdf';
 import { pickPdfFile } from '../utils/pickPdfFile';
 import { estimateBase64Size, formatBytes } from '../utils/fileSize';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 // Resolution + JPEG quality pairs. Resolution (renderScale) matters more
 // than JPEG quality for legibility here, since a whole page is being
@@ -24,6 +24,7 @@ const COMPRESSION_PRESETS = [
 const ANDROID_DOWNLOADS_URI = 'content://com.android.externalstorage.documents/document/primary:Download';
 
 export default function PdfCompressorScreen({ navigation }) {
+  const { colors, spacing, radius, typography, shadow } = useTheme();
   const processorRef = useRef(null);
   const [pickedFile, setPickedFile] = useState(null);
   const [presetKey, setPresetKey] = useState('medium');
@@ -56,6 +57,13 @@ export default function PdfCompressorScreen({ navigation }) {
       );
       const compressedBase64 = await buildPdfFromRasterPages(pages);
       setResult({ base64: compressedBase64, size: estimateBase64Size(compressedBase64) });
+
+      // The rasterized page images were only needed to build the bytes
+      // above - without this, every compression attempt leaves one temp
+      // image per page behind in the cache directory forever.
+      for (const page of pages) {
+        FileSystem.deleteAsync(page.uri, { idempotent: true }).catch(() => {});
+      }
     } catch (error) {
       console.error('Error compressing PDF:', error);
       Alert.alert('Error', 'Could not compress this PDF. It may be corrupted or password-protected.');
@@ -113,6 +121,162 @@ export default function PdfCompressorScreen({ navigation }) {
     setResult(null);
     setProgress(null);
   };
+
+  const styles = StyleSheet.create({
+    scrollView: {
+      // flex: 1,
+    },
+    content: {
+      padding: spacing.xl,
+      paddingBottom: spacing.xxxl,
+    },
+    pickCard: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      padding: spacing.xxl,
+      marginTop: spacing.xl,
+    },
+    pickIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    pickTitle: {
+      ...typography.title,
+      fontSize: RFValue(18),
+    },
+    pickBody: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    fileCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      gap: spacing.md,
+      ...shadow,
+    },
+    fileInfo: {
+      flex: 1,
+    },
+    fileName: {
+      ...typography.body,
+      fontFamily: 'Nunito-Bold',
+    },
+    fileMeta: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    sectionLabel: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginTop: spacing.xl,
+      marginBottom: spacing.sm,
+    },
+    presetGroup: {
+      gap: spacing.sm,
+    },
+    presetOption: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.md,
+    },
+    presetOptionActive: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accentSoft,
+    },
+    presetOptionLabel: {
+      ...typography.body,
+      fontFamily: 'Nunito-Bold',
+      color: colors.text,
+    },
+    presetOptionLabelActive: {
+      color: colors.accent,
+    },
+    presetOptionDesc: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    compressButton: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginTop: spacing.xl,
+    },
+    compressButtonText: {
+      ...typography.button,
+      color: colors.white,
+      fontSize: RFValue(16),
+    },
+    progressText: {
+      ...typography.label,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.md,
+    },
+    resultCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.lg,
+      marginTop: spacing.xl,
+      ...shadow,
+    },
+    resultRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+    },
+    resultLabel: {
+      ...typography.body,
+      color: colors.textMuted,
+    },
+    resultValue: {
+      ...typography.body,
+      fontFamily: 'Nunito-Bold',
+    },
+    resultValueAccent: {
+      color: colors.accent,
+    },
+    tryAgainButton: {
+      alignItems: 'center',
+      marginTop: spacing.md,
+    },
+    tryAgainText: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+    tipCard: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      backgroundColor: colors.accentSoft,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginTop: spacing.xl,
+    },
+    tipText: {
+      ...typography.label,
+      fontFamily: 'Nunito-Regular',
+      color: colors.text,
+      flex: 1,
+      lineHeight: RFValue(18),
+    },
+  });
 
   return (
     <Screen>
@@ -209,160 +373,3 @@ export default function PdfCompressorScreen({ navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-
-  scrollView: {
-    // flex: 1,
-  },
-  content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxxl,
-  },
-  pickCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    padding: spacing.xxl,
-    marginTop: spacing.xl,
-  },
-  pickIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  pickTitle: {
-    ...typography.title,
-    fontSize: RFValue(18),
-  },
-  pickBody: {
-    ...typography.subtitle,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  fileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.md,
-    ...shadow,
-  },
-  fileInfo: {
-    flex: 1,
-  },
-  fileName: {
-    ...typography.body,
-    fontFamily: 'Nunito-Bold',
-  },
-  fileMeta: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  presetGroup: {
-    gap: spacing.sm,
-  },
-  presetOption: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-  presetOptionActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
-  },
-  presetOptionLabel: {
-    ...typography.body,
-    fontFamily: 'Nunito-Bold',
-    color: colors.text,
-  },
-  presetOptionLabelActive: {
-    color: colors.accent,
-  },
-  presetOptionDesc: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  compressButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  compressButtonText: {
-    ...typography.button,
-    color: colors.white,
-    fontSize: RFValue(16),
-  },
-  progressText: {
-    ...typography.label,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.md,
-  },
-  resultCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    marginTop: spacing.xl,
-    ...shadow,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-  },
-  resultLabel: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  resultValue: {
-    ...typography.body,
-    fontFamily: 'Nunito-Bold',
-  },
-  resultValueAccent: {
-    color: colors.accent,
-  },
-  tryAgainButton: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-  },
-  tryAgainText: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  tipCard: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.xl,
-  },
-  tipText: {
-    ...typography.label,
-    fontFamily: 'Nunito-Regular',
-    color: colors.text,
-    flex: 1,
-    lineHeight: RFValue(18),
-  },
-});

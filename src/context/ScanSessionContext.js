@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import { MAX_PAGES_PER_DOCUMENT } from '../utils/scanLimits';
 
 const ScanSessionContext = createContext(null);
 const SESSION_STORAGE_KEY = 'pro-scanner:in-progress-session';
@@ -19,6 +21,15 @@ export function ScanSessionProvider({ children }) {
   // tell an empty session apart from one that's still loading.
   const [restored, setRestored] = useState(false);
   const isFirstLoad = useRef(true);
+  // Mirrors of the latest state for clearSession (below), which needs to read
+  // current pages/sourceEntryId but is itself memoized with no deps so its
+  // identity stays stable for consumers.
+  const pagesRef = useRef(pages);
+  const sourceEntryIdRef = useRef(sourceEntryId);
+  useEffect(() => {
+    pagesRef.current = pages;
+    sourceEntryIdRef.current = sourceEntryId;
+  }, [pages, sourceEntryId]);
 
   useEffect(() => {
     AsyncStorage.getItem(SESSION_STORAGE_KEY)
@@ -48,7 +59,12 @@ export function ScanSessionProvider({ children }) {
     );
   }, [pages, sourceEntryId]);
 
+  // Returns null (adds nothing) once the document is already at the page
+  // cap - callers are expected to check for that and tell the user why.
   const addPage = useCallback((uri) => {
+    if (pagesRef.current.length >= MAX_PAGES_PER_DOCUMENT) {
+      return null;
+    }
     const id = generateId();
     setPages((prev) => [...prev, { id, uri, corners: null, processedUri: null }]);
     return id;
@@ -80,6 +96,21 @@ export function ScanSessionProvider({ children }) {
   }, []);
 
   const clearSession = useCallback(() => {
+    // Only delete the underlying image files for a genuinely fresh scan
+    // (sourceEntryId null). When a session was loaded via loadPages (editing
+    // an existing History entry), page.uri/processedUri point at that
+    // entry's permanent, still-in-use files under documentDirectory/history/
+    // - those are owned and cleaned up by HistoryContext, not here.
+    if (sourceEntryIdRef.current === null) {
+      const urisToDelete = new Set();
+      pagesRef.current.forEach((page) => {
+        if (page.uri) urisToDelete.add(page.uri);
+        if (page.processedUri) urisToDelete.add(page.processedUri);
+      });
+      urisToDelete.forEach((uri) => {
+        FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+      });
+    }
     setPages([]);
     setSourceEntryId(null);
     AsyncStorage.removeItem(SESSION_STORAGE_KEY).catch((error) =>

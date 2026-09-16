@@ -6,10 +6,9 @@ import Button from '../components/Button';
 import { useScanSession } from '../context/ScanSessionContext';
 import { markOnboardingComplete } from '../utils/onboarding';
 import { resetTo } from '../utils/navigation';
-import { colors, spacing, radius, typography } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const AUTO_ADVANCE_INTERVAL = 3500;
-const SLIDE_HORIZONTAL_PADDING = spacing.xl * 2;
 
 const SLIDES = [
   {
@@ -19,7 +18,7 @@ const SLIDES = [
   },
   {
     key: 'slide3',
-    image: require('../../assets/images/slide3.png'),
+    image: require('../../assets/images/slide3.webp'),
     aspectRatio: 1280 / 960,
     width: 300,
     lines: ['Download it', 'and Share it'],
@@ -38,6 +37,7 @@ const SLIDES = [
 
 export default function OnboardingScreen({ navigation }) {
   const { clearSession } = useScanSession();
+  const { colors, spacing, radius, typography } = useTheme();
   const listRef = useRef(null);
   const indexRef = useRef(0);
   const [index, setIndex] = useState(0);
@@ -45,6 +45,7 @@ export default function OnboardingScreen({ navigation }) {
   // device or resizing a split-screen/foldable window keeps each slide and
   // its paging math lined up with the actual current width.
   const { width: screenWidth } = useWindowDimensions();
+  const slideHorizontalPadding = spacing.xl * 2;
 
   const goToCamera = useCallback(() => {
     markOnboardingComplete();
@@ -81,6 +82,89 @@ export default function OnboardingScreen({ navigation }) {
     }
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: spacing.xl,
+      paddingHorizontal: spacing.xl,
+    },
+    brand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    brandIcon: {
+      width: 30,
+      height: 30,
+    },
+    title: {
+      ...typography.title,
+      fontSize: RFValue(20),
+    },
+    subtitle: {
+      ...typography.subtitle,
+      fontSize: RFValue(13),
+      marginTop: 1,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    slide: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    logo: {
+      width: 240,
+      height: 240,
+      borderRadius: radius.lg,
+      overflow: 'hidden',
+    },
+    quotescontainer: {
+      alignItems: 'center',
+      marginTop: spacing.lg,
+    },
+    quotes: {
+      ...typography.body,
+      fontFamily: 'Nunito-Bold',
+      fontSize: RFValue(20),
+      textAlign: 'center',
+    },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.border,
+    },
+    dotActive: {
+      backgroundColor: colors.accent,
+      width: 20,
+    },
+    buttonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      width: '100%',
+      paddingHorizontal: spacing.xl,
+      marginTop: spacing.xxl,
+      marginBottom: spacing.xxl,
+      gap: spacing.md,
+    },
+    actionButton: {
+      flex: 1,
+    },
+  });
+
   return (
     <Screen style={styles.container}>
       <View style={styles.header}>
@@ -108,7 +192,7 @@ export default function OnboardingScreen({ navigation }) {
             // get clamped to the available width, so they can't overflow past
             // the screen edges on narrow phones.
             const customWidth = item.width
-              ? Math.min(item.width, screenWidth - SLIDE_HORIZONTAL_PADDING)
+              ? Math.min(item.width, screenWidth - slideHorizontalPadding)
               : undefined;
             return (
               <View style={[styles.slide, { width: screenWidth }]}>
@@ -154,86 +238,3 @@ export default function OnboardingScreen({ navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.xl,
-    paddingHorizontal: spacing.xl,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  brandIcon: {
-    width: 30,
-    height: 30,
-  },
-  title: {
-    ...typography.title,
-    fontSize: RFValue(20),
-  },
-  subtitle: {
-    ...typography.subtitle,
-    fontSize: RFValue(13),
-    marginTop: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  slide: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 240,
-    height: 240,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-  },
-  quotescontainer: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  quotes: {
-    ...typography.body,
-    fontFamily: 'Nunito-Bold',
-    fontSize: RFValue(20),
-    textAlign: 'center',
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-  },
-  dotActive: {
-    backgroundColor: colors.accent,
-    width: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.xxl,
-    marginBottom: spacing.xxl,
-    gap: spacing.md,
-  },
-  actionButton: {
-    flex: 1,
-  },
-});

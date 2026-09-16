@@ -4,13 +4,15 @@ import Constants from 'expo-constants';
 import Screen from '../components/Screen';
 import { hasCompletedOnboarding } from '../utils/onboarding';
 import { resetTo } from '../utils/navigation';
-import { colors, spacing, typography } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 // Read from app.json rather than hardcoded, same as the About section in
 // Help & Guide, so the two can never drift out of sync with each other.
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 const Intro = ({ navigation }) => {
+  const { colors, spacing, typography } = useTheme();
+
   useEffect(() => {
     const timer = setTimeout(async () => {
       const onboarded = await hasCompletedOnboarding();
@@ -21,6 +23,34 @@ const Intro = ({ navigation }) => {
 
     return () => clearTimeout(timer);
   }, [navigation]);
+
+  const styles = StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      paddingBottom: spacing.xxl,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logo: {
+      width: 121,
+      height: 114,
+      marginBottom: spacing.lg,
+    },
+    title: {
+      ...typography.title,
+    },
+    subtitle: {
+      ...typography.subtitle,
+      marginTop: spacing.xs,
+    },
+    version: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+  });
 
   return (
     <Screen style={styles.container}>
@@ -33,33 +63,5 @@ const Intro = ({ navigation }) => {
     </Screen>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingBottom: spacing.xxl,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logo: {
-    width: 121,
-    height: 114,
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.title,
-  },
-  subtitle: {
-    ...typography.subtitle,
-    marginTop: spacing.xs,
-  },
-  version: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-});
 
 export default Intro;

@@ -10,7 +10,8 @@ import { useScanSession } from '../context/ScanSessionContext';
 import { groupHistoryByDate } from '../utils/historyGroups';
 import { buildPdfFromPages } from '../utils/buildPdf';
 import { generateScanName } from '../utils/scanName';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { MAX_PAGES_PER_DOCUMENT } from '../utils/scanLimits';
+import { useTheme } from '../context/ThemeContext';
 
 function formatTime(timestamp) {
   return new Date(timestamp).toLocaleTimeString(undefined, {
@@ -43,6 +44,7 @@ function buildListItems(history, viewMode) {
 export default function HistoryScreen({ navigation }) {
   const { history, addEntry, removeEntry } = useHistory();
   const { pages: activeSessionPages, loadPages } = useScanSession();
+  const { colors, spacing, radius, typography, shadow } = useTheme();
   const [viewMode, setViewMode] = useState('grid');
   const [query, setQuery] = useState('');
 
@@ -133,6 +135,15 @@ export default function HistoryScreen({ navigation }) {
     try {
       const orderedEntries = selectedIds.map((id) => history.find((entry) => entry.id === id)).filter(Boolean);
       const mergedPageUris = orderedEntries.flatMap((entry) => entry.pageUris);
+
+      if (mergedPageUris.length > MAX_PAGES_PER_DOCUMENT) {
+        Alert.alert(
+          'Too Many Pages to Merge',
+          `The selected scans add up to ${mergedPageUris.length} pages, but a single document can have up to ${MAX_PAGES_PER_DOCUMENT}. Select fewer scans and try again.`
+        );
+        return;
+      }
+
       const pdfBytes = await buildPdfFromPages(mergedPageUris.map((uri) => ({ uri })));
 
       const tempPdfUri = `${FileSystem.cacheDirectory}temp-merge-${Date.now()}.pdf`;
@@ -142,6 +153,11 @@ export default function HistoryScreen({ navigation }) {
 
       const mergedName = generateScanName(new Date(), 'Merged');
       const entry = await addEntry({ name: mergedName, pdfUri: tempPdfUri, pageUris: mergedPageUris });
+
+      // addEntry already copied this into permanent History storage - the
+      // cache copy is now redundant. (mergedPageUris are the *source*
+      // entries' own permanent files and must not be touched here.)
+      FileSystem.deleteAsync(tempPdfUri, { idempotent: true }).catch(() => {});
 
       setSelectMode(false);
       setSelectedIds([]);
@@ -223,6 +239,186 @@ export default function HistoryScreen({ navigation }) {
       </TouchableOpacity>
     );
   };
+
+  const styles = StyleSheet.create({
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    searchWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      minWidth: 0,
+      padding: 0,
+      ...typography.body,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xxl,
+    },
+    emptyTitle: {
+      ...typography.title,
+      fontSize: RFValue(18),
+      marginTop: spacing.lg,
+    },
+    emptyBody: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    listContent: {
+      padding: spacing.lg,
+    },
+    sectionHeader: {
+      ...typography.title,
+      fontSize: RFValue(16),
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    cardSpacer: {
+      flex: 1,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+      ...shadow,
+    },
+    thumbnail: {
+      width: '100%',
+      aspectRatio: 3 / 4,
+      borderRadius: radius.sm,
+      backgroundColor: colors.border,
+    },
+    cardTitle: {
+      ...typography.label,
+      color: colors.text,
+      marginTop: spacing.sm,
+    },
+    cardMeta: {
+      ...typography.label,
+      color: colors.textMuted,
+      fontFamily: 'Nunito-Regular',
+      marginTop: 2,
+    },
+    deleteButton: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      padding: spacing.xs,
+      ...shadow,
+    },
+    editButton: {
+      position: 'absolute',
+      top: spacing.sm,
+      left: spacing.sm,
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      padding: spacing.xs,
+      ...shadow,
+    },
+    listRowActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    cardSelected: {
+      borderWidth: 2,
+      borderColor: colors.accent,
+    },
+    selectBadge: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.accent,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    selectBadgeActive: {
+      backgroundColor: colors.accent,
+    },
+    listRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+      ...shadow,
+    },
+    listThumbnail: {
+      width: 56,
+      height: 56,
+      borderRadius: radius.sm,
+      backgroundColor: colors.border,
+    },
+    listInfo: {
+      flex: 1,
+      marginLeft: spacing.md,
+      marginRight: spacing.sm,
+    },
+    mergeBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radius.lg,
+      ...shadow,
+    },
+    mergeBarText: {
+      ...typography.label,
+      color: colors.text,
+      flex: 1,
+      marginRight: spacing.md,
+    },
+    mergeButton: {
+      backgroundColor: colors.accent,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      minWidth: 84,
+      alignItems: 'center',
+    },
+    mergeButtonDisabled: {
+      opacity: 0.4,
+    },
+    mergeButtonText: {
+      ...typography.button,
+      color: colors.white,
+    },
+  });
 
   return (
     <Screen>
@@ -323,183 +519,3 @@ export default function HistoryScreen({ navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-    padding: 0,
-    ...typography.body,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
-  },
-  emptyTitle: {
-    ...typography.title,
-    fontSize: RFValue(18),
-    marginTop: spacing.lg,
-  },
-  emptyBody: {
-    ...typography.subtitle,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  listContent: {
-    padding: spacing.lg,
-  },
-  sectionHeader: {
-    ...typography.title,
-    fontSize: RFValue(16),
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  cardSpacer: {
-    flex: 1,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    ...shadow,
-  },
-  thumbnail: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: radius.sm,
-    backgroundColor: colors.border,
-  },
-  cardTitle: {
-    ...typography.label,
-    color: colors.text,
-    marginTop: spacing.sm,
-  },
-  cardMeta: {
-    ...typography.label,
-    color: colors.textMuted,
-    fontFamily: 'Nunito-Regular',
-    marginTop: 2,
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    padding: spacing.xs,
-    ...shadow,
-  },
-  editButton: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    padding: spacing.xs,
-    ...shadow,
-  },
-  listRowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  cardSelected: {
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  selectBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.accent,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectBadgeActive: {
-    backgroundColor: colors.accent,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    ...shadow,
-  },
-  listThumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.sm,
-    backgroundColor: colors.border,
-  },
-  listInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-    marginRight: spacing.sm,
-  },
-  mergeBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.lg,
-    ...shadow,
-  },
-  mergeBarText: {
-    ...typography.label,
-    color: colors.text,
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  mergeButton: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    minWidth: 84,
-    alignItems: 'center',
-  },
-  mergeButtonDisabled: {
-    opacity: 0.4,
-  },
-  mergeButtonText: {
-    ...typography.button,
-    color: colors.white,
-  },
-});

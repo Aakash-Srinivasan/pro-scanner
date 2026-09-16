@@ -7,12 +7,13 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { useScanSession } from '../context/ScanSessionContext';
+import { MAX_PAGES_PER_DOCUMENT } from '../utils/scanLimits';
 import { resetTo } from '../utils/navigation';
 import { hasSeenCameraCoachmarks, markCameraCoachmarksSeen } from '../utils/coachmarks';
 import Screen from '../components/Screen';
 import Header from '../components/Header';
 import Button from '../components/Button';
-import { colors, spacing, radius, typography } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 // A URL is offered an "Open" action; anything else (plain text, a
 // contact card, a wifi config, etc.) only gets "Copy".
@@ -23,6 +24,7 @@ export default function CameraScreen({ navigation, route }) {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const { addPage } = useScanSession();
+  const { colors, spacing, radius, typography } = useTheme();
   const insets = useSafeAreaInsets();
   const [showCoachMarks, setShowCoachMarks] = useState(false);
 
@@ -51,6 +53,142 @@ export default function CameraScreen({ navigation, route }) {
     setShowCoachMarks(false);
     markCameraCoachmarksSeen();
   };
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    permissionContent: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xxl,
+    },
+    permissionIconWrap: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xl,
+    },
+    permissionTitle: {
+      ...typography.title,
+      fontSize: RFValue(20),
+      textAlign: 'center',
+    },
+    permissionBody: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+      marginBottom: spacing.xl,
+    },
+    permissionButton: {
+      width: '100%',
+    },
+    camera: {
+      flex: 1,
+    },
+    TopbuttonContainer: {
+      position: 'absolute',
+      left: spacing.lg,
+      alignItems: 'center',
+    },
+    topRightButtonContainer: {
+      position: 'absolute',
+      right: spacing.lg,
+      alignItems: 'center',
+    },
+    qrHintWrap: {
+      position: 'absolute',
+      top: '18%',
+      left: spacing.xxl,
+      right: spacing.xxl,
+      alignItems: 'center',
+    },
+    qrHintText: {
+      ...typography.label,
+      color: colors.white,
+      textAlign: 'center',
+      backgroundColor: 'rgba(20, 12, 20, 0.55)',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      overflow: 'hidden',
+    },
+    buttonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: spacing.xl,
+      right: spacing.xl,
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      backgroundColor: 'rgba(20, 12, 20, 0.55)',
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+    },
+    glassCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(255, 255, 255, 0.18)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shutterOuter: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      borderWidth: 3,
+      borderColor: colors.white,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shutterInner: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      backgroundColor: colors.white,
+    },
+    coachOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    coachCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.xl,
+      alignItems: 'center',
+      width: '100%',
+    },
+    coachTitle: {
+      ...typography.title,
+      fontSize: RFValue(18),
+      marginTop: spacing.md,
+    },
+    coachBody: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    coachButton: {
+      backgroundColor: colors.accent,
+      paddingHorizontal: spacing.xxl,
+      paddingVertical: spacing.md,
+      borderRadius: radius.pill,
+    },
+    coachButtonText: {
+      ...typography.button,
+      color: colors.white,
+    },
+  });
 
   if (!cameraPermission) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
@@ -113,11 +251,22 @@ export default function CameraScreen({ navigation, route }) {
     }
     actions.push({ text: 'Dismiss', style: 'cancel', onPress: unlock });
 
-    Alert.alert('Code Scanned', data, actions);
+    // onDismiss (Android only) covers dismissing via the hardware back
+    // button or tapping outside the alert - without it, that path skips
+    // every button's onPress, leaving scanLockRef stuck `true` and silently
+    // preventing any further scans until the screen is left and reopened.
+    Alert.alert('Code Scanned', data, actions, { onDismiss: unlock });
   };
 
   const goToPageEdit = (uri) => {
     const pageId = addPage(uri);
+    if (!pageId) {
+      Alert.alert(
+        'Page Limit Reached',
+        `A single document can have up to ${MAX_PAGES_PER_DOCUMENT} pages. Remove a page, or save this scan and start a new one to keep going.`
+      );
+      return;
+    }
     navigation.navigate('PageEdit', { pageId });
   };
 
@@ -205,139 +354,3 @@ export default function CameraScreen({ navigation, route }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  permissionContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
-  },
-  permissionIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-  },
-  permissionTitle: {
-    ...typography.title,
-    fontSize: RFValue(20),
-    textAlign: 'center',
-  },
-  permissionBody: {
-    ...typography.subtitle,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  permissionButton: {
-    width: '100%',
-  },
-  camera: {
-    flex: 1,
-  },
-  TopbuttonContainer: {
-    position: 'absolute',
-    left: spacing.lg,
-    alignItems: 'center',
-  },
-  topRightButtonContainer: {
-    position: 'absolute',
-    right: spacing.lg,
-    alignItems: 'center',
-  },
-  qrHintWrap: {
-    position: 'absolute',
-    top: '18%',
-    left: spacing.xxl,
-    right: spacing.xxl,
-    alignItems: 'center',
-  },
-  qrHintText: {
-    ...typography.label,
-    color: colors.white,
-    textAlign: 'center',
-    backgroundColor: 'rgba(20, 12, 20, 0.55)',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: spacing.xl,
-    right: spacing.xl,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: 'rgba(20, 12, 20, 0.55)',
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-  },
-  glassCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shutterOuter: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 3,
-    borderColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shutterInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.white,
-  },
-  coachOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  coachCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    alignItems: 'center',
-    width: '100%',
-  },
-  coachTitle: {
-    ...typography.title,
-    fontSize: RFValue(18),
-    marginTop: spacing.md,
-  },
-  coachBody: {
-    ...typography.subtitle,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  coachButton: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.md,
-    borderRadius: radius.pill,
-  },
-  coachButtonText: {
-    ...typography.button,
-    color: colors.white,
-  },
-});

@@ -10,12 +10,15 @@ import { useScanSession } from '../context/ScanSessionContext';
 import { useHistory } from '../context/HistoryContext';
 import { buildPdfFromPages } from '../utils/buildPdf';
 import { generateScanName } from '../utils/scanName';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { MAX_PAGES_PER_DOCUMENT } from '../utils/scanLimits';
+import { useTheme } from '../context/ThemeContext';
 
 export default function PagesScreen({ navigation }) {
   const { pages, sourceEntryId, removePage, reorderPages } = useScanSession();
   const { history, addEntry, updateEntry } = useHistory();
+  const { colors, spacing, radius, typography, shadow } = useTheme();
   const [building, setBuilding] = useState(false);
+  const [buildProgress, setBuildProgress] = useState(null);
   const nameInputRef = useRef(null);
 
   // Editing an already-saved scan starts from its existing name; a fresh
@@ -40,6 +43,13 @@ export default function PagesScreen({ navigation }) {
   };
 
   const handleAddPage = () => {
+    if (pages.length >= MAX_PAGES_PER_DOCUMENT) {
+      Alert.alert(
+        'Page Limit Reached',
+        `A single document can have up to ${MAX_PAGES_PER_DOCUMENT} pages. Remove a page, or save this scan and start a new one to keep going.`
+      );
+      return;
+    }
     navigation.navigate('Camera');
   };
 
@@ -65,7 +75,11 @@ export default function PagesScreen({ navigation }) {
     if (pages.length === 0) return;
     setBuilding(true);
     try {
-      const pdfBytes = await buildPdfFromPages(pages);
+      const pdfBytes = await buildPdfFromPages(pages, (current, total) => {
+        // Only surface progress once there are enough pages for a single
+        // "Building..." spinner to risk feeling stuck.
+        if (total > 3) setBuildProgress({ current, total });
+      });
 
       // Stash the freshly built PDF in cache just long enough to hand a
       // real file off to history's own permanent storage.
@@ -83,6 +97,10 @@ export default function PagesScreen({ navigation }) {
         ? await updateEntry(sourceEntryId, { pdfUri: tempPdfUri, pageUris, name })
         : await addEntry({ name, pdfUri: tempPdfUri, pageUris });
 
+      // addEntry/updateEntry already copied this into permanent History
+      // storage - the cache copy is now redundant.
+      FileSystem.deleteAsync(tempPdfUri, { idempotent: true }).catch(() => {});
+
       navigation.navigate('Preview', {
         pdfBytes,
         pageThumbnails: entry.pageUris,
@@ -93,8 +111,95 @@ export default function PagesScreen({ navigation }) {
       Alert.alert('Error', 'Failed to build the PDF. Please try again.');
     } finally {
       setBuilding(false);
+      setBuildProgress(null);
     }
   };
+
+  const styles = StyleSheet.create({
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      maxWidth: '100%',
+    },
+    titleText: {
+      ...typography.title,
+      fontSize: RFValue(16),
+      flexShrink: 1,
+    },
+    titleInput: {
+      ...typography.title,
+      fontSize: RFValue(16),
+      minWidth: 120,
+      maxWidth: 180,
+      padding: 0,
+    },
+    listContent: {
+      padding: spacing.lg,
+    },
+    row: {
+      gap: spacing.md,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+      ...shadow,
+    },
+    thumbnail: {
+      width: '100%',
+      aspectRatio: 3 / 4,
+      borderRadius: radius.sm,
+      backgroundColor: colors.border,
+    },
+    pageBadge: {
+      position: 'absolute',
+      top: spacing.md,
+      left: spacing.md,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadow,
+    },
+    pageBadgeText: {
+      ...typography.label,
+      color: colors.white,
+      fontSize: RFValue(11),
+    },
+    deleteButton: {
+      position: 'absolute',
+      top: spacing.md,
+      right: spacing.md,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadow,
+    },
+    cardActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-evenly',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xl,
+      gap: spacing.md,
+    },
+    actionButton: {
+      flex: 1,
+    },
+  });
 
   const renderItem = ({ item, index }) => (
     <View style={styles.card}>
@@ -174,9 +279,21 @@ export default function PagesScreen({ navigation }) {
       />
 
       <View style={styles.actions}>
-        <Button title="Add Page" variant="secondary" onPress={handleAddPage} style={styles.actionButton} />
         <Button
-          title={building ? 'Building...' : 'Done'}
+          title="Add Page"
+          variant="secondary"
+          onPress={handleAddPage}
+          disabled={pages.length >= MAX_PAGES_PER_DOCUMENT}
+          style={styles.actionButton}
+        />
+        <Button
+          title={
+            building
+              ? buildProgress
+                ? `Building ${buildProgress.current}/${buildProgress.total}...`
+                : 'Building...'
+              : 'Done'
+          }
           onPress={handleDone}
           disabled={building}
           loading={building}
@@ -186,89 +303,3 @@ export default function PagesScreen({ navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    maxWidth: '100%',
-  },
-  titleText: {
-    ...typography.title,
-    fontSize: RFValue(16),
-    flexShrink: 1,
-  },
-  titleInput: {
-    ...typography.title,
-    fontSize: RFValue(16),
-    minWidth: 120,
-    maxWidth: 180,
-    padding: 0,
-  },
-  listContent: {
-    padding: spacing.lg,
-  },
-  row: {
-    gap: spacing.md,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    ...shadow,
-  },
-  thumbnail: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: radius.sm,
-    backgroundColor: colors.border,
-  },
-  pageBadge: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
-  pageBadgeText: {
-    ...typography.label,
-    color: colors.white,
-    fontSize: RFValue(11),
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  actionButton: {
-    flex: 1,
-  },
-});

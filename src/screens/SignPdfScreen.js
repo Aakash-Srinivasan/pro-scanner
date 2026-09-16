@@ -24,7 +24,15 @@ import SignaturePad from '../utils/SignaturePad';
 import PdfPagePreview from '../utils/PdfPagePreview';
 import { pickPdfFile } from '../utils/pickPdfFile';
 import { estimateBase64Size, formatBytes } from '../utils/fileSize';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+
+// Not theme-dependent (just positioning), so this stays a plain static
+// stylesheet usable by DraggableSignature without it needing useTheme itself.
+const staticStyles = StyleSheet.create({
+  dragSignature: {
+    position: 'absolute',
+  },
+});
 
 // The signature's own size relative to the page's displayed width - used
 // both for the draggable preview overlay and the final stamped size, so
@@ -74,7 +82,7 @@ function DraggableSignature({ uri, position, size, bounds, onMove }) {
       source={{ uri }}
       resizeMode="contain"
       style={[
-        styles.dragSignature,
+        staticStyles.dragSignature,
         { left: position.x, top: position.y, width: size.width, height: size.height },
       ]}
     />
@@ -82,6 +90,7 @@ function DraggableSignature({ uri, position, size, bounds, onMove }) {
 }
 
 export default function SignPdfScreen({ navigation }) {
+  const { colors, spacing, radius, typography, shadow } = useTheme();
   const padRef = useRef(null);
   const previewRef = useRef(null);
   const { width: windowWidth } = useWindowDimensions();
@@ -239,6 +248,12 @@ export default function SignPdfScreen({ navigation }) {
       const signedBase64 = await pdfDoc.saveAsBase64();
       setResult({ base64: signedBase64, size: estimateBase64Size(signedBase64) });
       setStage('result');
+
+      // The drawn signature and the rasterized page preview were only
+      // needed to build the bytes above - without this, every signed PDF
+      // leaves both temp images behind in the cache directory forever.
+      FileSystem.deleteAsync(signatureUri, { idempotent: true }).catch(() => {});
+      FileSystem.deleteAsync(previewImage.uri, { idempotent: true }).catch(() => {});
     } catch (error) {
       console.error('Error signing PDF:', error);
       Alert.alert('Error', 'Could not sign this PDF. It may be corrupted or password-protected.');
@@ -296,6 +311,168 @@ export default function SignPdfScreen({ navigation }) {
     setSigPosition(null);
     setStage('draw');
   };
+
+  const styles = StyleSheet.create({
+    scrollView: {
+      // flex: 1,
+    },
+    content: {
+      padding: spacing.xl,
+      paddingBottom: spacing.xxxl,
+    },
+    pickCard: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      padding: spacing.xxl,
+      marginTop: spacing.xl,
+    },
+    pickIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    pickTitle: {
+      ...typography.title,
+      fontSize: RFValue(18),
+    },
+    pickBody: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    fileCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      gap: spacing.md,
+      ...shadow,
+    },
+    fileInfo: {
+      flex: 1,
+    },
+    fileName: {
+      ...typography.body,
+      fontFamily: 'Nunito-Bold',
+    },
+    fileMeta: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    padHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.xl,
+      marginBottom: spacing.sm,
+    },
+    sectionLabel: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+    clearText: {
+      ...typography.label,
+      color: colors.accent,
+    },
+    padWrap: {
+      height: 220,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    previewWrap: {
+      height: 380,
+      backgroundColor: '#000',
+      borderRadius: radius.md,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dragSignature: {
+      position: 'absolute',
+    },
+    padHint: {
+      ...typography.label,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    positionActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    resetButton: {
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
+    resetButtonText: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+    applyButton: {
+      alignSelf: 'stretch',
+      backgroundColor: colors.accent,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xxl,
+      alignItems: 'center',
+      marginTop: spacing.xl,
+    },
+    applyButtonInline: {
+      flex: 1,
+      marginTop: 0,
+    },
+    applyButtonDisabled: {
+      opacity: 0.4,
+    },
+    applyButtonText: {
+      ...typography.button,
+      color: colors.white,
+      textAlign: 'center',
+      fontSize: RFValue(16),
+    },
+    resultCard: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.xl,
+      marginTop: spacing.xl,
+      ...shadow,
+    },
+    resultIcon: {
+      marginBottom: spacing.sm,
+    },
+    resultTitle: {
+      ...typography.title,
+      fontSize: RFValue(18),
+    },
+    resultMeta: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+    tryAgainButton: {
+      alignItems: 'center',
+      marginTop: spacing.md,
+    },
+    tryAgainText: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+  });
 
   return (
     <Screen>
@@ -423,164 +600,3 @@ export default function SignPdfScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  scrollView: {
-    // flex: 1,
-  },
-  content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxxl,
-  },
-  pickCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    padding: spacing.xxl,
-    marginTop: spacing.xl,
-  },
-  pickIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  pickTitle: {
-    ...typography.title,
-    fontSize: RFValue(18),
-  },
-  pickBody: {
-    ...typography.subtitle,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  fileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.md,
-    ...shadow,
-  },
-  fileInfo: {
-    flex: 1,
-  },
-  fileName: {
-    ...typography.body,
-    fontFamily: 'Nunito-Bold',
-  },
-  fileMeta: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  padHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  clearText: {
-    ...typography.label,
-    color: colors.accent,
-  },
-  padWrap: {
-    height: 220,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  previewWrap: {
-    height: 380,
-    backgroundColor: '#000',
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dragSignature: {
-    position: 'absolute',
-  },
-  padHint: {
-    ...typography.label,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  positionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  resetButton: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  resetButtonText: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  applyButton: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xxl,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  applyButtonInline: {
-    flex: 1,
-    marginTop: 0,
-  },
-  applyButtonDisabled: {
-    opacity: 0.4,
-  },
-  applyButtonText: {
-    ...typography.button,
-    color: colors.white,
-    textAlign: 'center',
-    fontSize: RFValue(16),
-  },
-  resultCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.xl,
-    marginTop: spacing.xl,
-    ...shadow,
-  },
-  resultIcon: {
-    marginBottom: spacing.sm,
-  },
-  resultTitle: {
-    ...typography.title,
-    fontSize: RFValue(18),
-  },
-  resultMeta: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  tryAgainButton: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-  },
-  tryAgainText: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-});

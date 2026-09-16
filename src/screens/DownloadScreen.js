@@ -5,15 +5,39 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import { useScanSession } from '../context/ScanSessionContext';
 import { resetTo } from '../utils/navigation';
-import { spacing } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export default function DownloadScreen({ navigation }) {
   const { clearSession } = useScanSession();
+  const { spacing } = useTheme();
 
   const goHome = () => {
     clearSession();
     resetTo(navigation, 'Home');
   };
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    gif: {
+      width: 200,
+      height: 200,
+      marginBottom: spacing.xl,
+    },
+    buttonContainer: {
+      width: '80%',
+      alignItems: 'center',
+    },
+    fullWidth: {
+      width: '100%',
+    },
+    homeButton: {
+      marginTop: spacing.md,
+    },
+  });
 
   return (
     <Screen>
@@ -29,26 +53,3 @@ export default function DownloadScreen({ navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gif: {
-    width: 200,
-    height: 200,
-    marginBottom: spacing.xl,
-  },
-  buttonContainer: {
-    width: '80%',
-    alignItems: 'center',
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  homeButton: {
-    marginTop: spacing.md,
-  },
-});

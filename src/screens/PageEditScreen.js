@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import ImageProcessor from '../utils/ImageProcessor';
 import { useScanSession } from '../context/ScanSessionContext';
-import { colors, spacing, typography } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const HANDLE_SIZE = 28;
 const EDGE_THICKNESS = 2;
@@ -15,7 +15,10 @@ const RESERVED_VERTICAL_SPACE = 220;
 
 // Draws the line from `from` to `to` so the 4 handles read as a connected
 // quadrilateral (the actual crop boundary) instead of 4 floating dots.
+// Reads the theme itself (rather than via a prop) since it's a standalone
+// top-level component, not nested inside PageEditScreen's own function body.
 function Edge({ from, to }) {
+  const { colors } = useTheme();
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const length = Math.sqrt(dx * dx + dy * dy);
@@ -25,7 +28,11 @@ function Edge({ from, to }) {
     <View
       pointerEvents="none"
       style={[
-        styles.edge,
+        {
+          position: 'absolute',
+          height: EDGE_THICKNESS,
+          backgroundColor: colors.accent,
+        },
         {
           left: from.x,
           top: from.y - EDGE_THICKNESS / 2,
@@ -39,6 +46,7 @@ function Edge({ from, to }) {
 }
 
 function Handle({ point, onMove, bounds }) {
+  const { colors } = useTheme();
   // `point`/`bounds` are read from refs kept in sync on every render (not
   // from the closure captured when PanResponder.create() first ran) so a
   // second drag on the same handle starts from where it actually is, not
@@ -70,7 +78,15 @@ function Handle({ point, onMove, bounds }) {
     <View
       {...pan.panHandlers}
       style={[
-        styles.handle,
+        {
+          position: 'absolute',
+          width: HANDLE_SIZE,
+          height: HANDLE_SIZE,
+          borderRadius: HANDLE_SIZE / 2,
+          backgroundColor: colors.accent,
+          borderWidth: 3,
+          borderColor: colors.white,
+        },
         { left: point.x - HANDLE_SIZE / 2, top: point.y - HANDLE_SIZE / 2 },
       ]}
     />
@@ -84,6 +100,7 @@ function clamp(v, min, max) {
 export default function PageEditScreen({ route, navigation }) {
   const { pageId } = route.params;
   const { pages, updatePage, removePage } = useScanSession();
+  const { spacing, typography } = useTheme();
   const page = pages.find((p) => p.id === pageId);
 
   const processorRef = useRef(null);
@@ -124,6 +141,30 @@ export default function PageEditScreen({ route, navigation }) {
     removePage(pageId);
     navigation.goBack();
   };
+
+  const styles = StyleSheet.create({
+    center: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    imageWrapper: {
+      alignSelf: 'center',
+      marginTop: spacing.xl,
+      marginBottom: spacing.xl + HANDLE_SIZE,
+      backgroundColor: '#000',
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      marginTop: 'auto',
+      marginBottom: spacing.xl,
+      gap: spacing.md,
+    },
+    actionButton: {
+      flex: 1,
+    },
+  });
 
   if (!page) {
     return (
@@ -205,41 +246,3 @@ export default function PageEditScreen({ route, navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageWrapper: {
-    alignSelf: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.xl + HANDLE_SIZE,
-    backgroundColor: '#000',
-  },
-  edge: {
-    position: 'absolute',
-    height: EDGE_THICKNESS,
-    backgroundColor: colors.accent,
-  },
-  handle: {
-    position: 'absolute',
-    width: HANDLE_SIZE,
-    height: HANDLE_SIZE,
-    borderRadius: HANDLE_SIZE / 2,
-    backgroundColor: colors.accent,
-    borderWidth: 3,
-    borderColor: colors.white,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    marginTop: 'auto',
-    marginBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  actionButton: {
-    flex: 1,
-  },
-});

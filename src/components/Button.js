@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, spacing, radius, typography } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Button({
   title,
@@ -10,7 +10,37 @@ export default function Button({
   loading,
   style,
 }) {
+  const { colors, spacing, radius, typography } = useTheme();
   const isSecondary = variant === 'secondary';
+  const styles = StyleSheet.create({
+    base: {
+      minHeight: 48,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    primary: {
+      backgroundColor: colors.accent,
+    },
+    secondary: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+    text: {
+      ...typography.button,
+    },
+    textPrimary: {
+      color: colors.white,
+    },
+    textSecondary: {
+      color: colors.accent,
+    },
+  });
 
   return (
     <TouchableOpacity
@@ -34,33 +64,3 @@ export default function Button({
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 48,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primary: {
-    backgroundColor: colors.accent,
-  },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  text: {
-    ...typography.button,
-  },
-  textPrimary: {
-    color: colors.white,
-  },
-  textSecondary: {
-    color: colors.accent,
-  },
-});

@@ -11,7 +11,7 @@ import { addWatermarkToPdf } from '../utils/watermarkPdf';
 import { estimateBase64Size, formatBytes } from '../utils/fileSize';
 import { useScanSession } from '../context/ScanSessionContext';
 import { resetTo } from '../utils/navigation';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const QUALITY_PRESETS = [
   { key: 'low', label: 'Low', quality: 0.35 },
@@ -22,6 +22,7 @@ const QUALITY_PRESETS = [
 export default function PreviewScreen({ route, navigation }) {
   const { pageThumbnails = [], suggestedName } = route.params;
   const { clearSession } = useScanSession();
+  const { colors, spacing, radius, typography, shadow } = useTheme();
   const [baseName, setBaseName] = useState(suggestedName || 'ProScanned');
   const [editingName, setEditingName] = useState(false);
   const [pdfBytes, setPdfBytes] = useState(route.params.pdfBytes);
@@ -184,6 +185,15 @@ export default function PreviewScreen({ route, navigation }) {
           pdfBytes: compressedBytes,
           size: estimateBase64Size(compressedBytes),
         };
+
+        // The per-page recompressed images were only ever needed to build
+        // the bytes above (applying a preset later just reuses those
+        // already-built bytes, never these files again) - without this,
+        // every tap of "Reduce File Size" leaves 3x the page count in
+        // orphaned temp images behind in the cache directory forever.
+        for (const uri of recompressedUris) {
+          FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+        }
       }
       setSizeOptions(results);
     } catch (error) {
@@ -246,6 +256,203 @@ export default function PreviewScreen({ route, navigation }) {
       },
     ]);
   };
+
+  const styles = StyleSheet.create({
+    editRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingTop: spacing.xl,
+      paddingHorizontal: spacing.xl,
+      gap: spacing.sm,
+    },
+    label: {
+      ...typography.label,
+      color: colors.text,
+    },
+    inputWrap: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderColor: colors.border,
+      borderWidth: 1,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+    },
+    input: {
+      flex: 1,
+      minWidth: 0,
+      padding: 0,
+      ...typography.body,
+    },
+    nameDisplay: {
+      flex: 1,
+      minWidth: 0,
+      ...typography.body,
+    },
+    extension: {
+      ...typography.body,
+      color: colors.textMuted,
+    },
+    previewList: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xl,
+      gap: spacing.md,
+      alignItems: 'center',
+      flexGrow: 1,
+      justifyContent: 'center',
+    },
+    previewCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      marginRight: spacing.md,
+      ...shadow,
+    },
+    pageShareButton: {
+      position: 'absolute',
+      top: spacing.md,
+      right: spacing.md,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadow,
+    },
+    previewImage: {
+      width: 220,
+      height: 300,
+      borderRadius: radius.sm,
+      backgroundColor: colors.border,
+    },
+    previewLabel: {
+      ...typography.label,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    reduceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingBottom: spacing.md,
+    },
+    reduceText: {
+      ...typography.label,
+      color: colors.accent,
+    },
+    reducePanel: {
+      marginHorizontal: spacing.xl,
+      marginBottom: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      ...shadow,
+    },
+    reduceLoading: {
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      gap: spacing.sm,
+    },
+    reduceLoadingText: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+    presetRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.sm,
+    },
+    presetRowActive: {
+      backgroundColor: colors.accentSoft,
+    },
+    presetLabel: {
+      ...typography.body,
+      fontFamily: 'Nunito-Bold',
+    },
+    presetSize: {
+      ...typography.body,
+      color: colors.textMuted,
+    },
+    cancelButton: {
+      alignItems: 'center',
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    cancelText: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+    watermarkInput: {
+      ...typography.body,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    watermarkActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginTop: spacing.md,
+    },
+    watermarkCancelButton: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    watermarkApplyButton: {
+      backgroundColor: colors.accent,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      minWidth: 72,
+      alignItems: 'center',
+    },
+    watermarkApplyDisabled: {
+      opacity: 0.4,
+    },
+    watermarkApplyText: {
+      ...typography.button,
+      color: colors.white,
+    },
+    buttonBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.lg,
+      borderRadius: radius.lg,
+      ...shadow,
+    },
+    actionItem: {
+      alignItems: 'center',
+    },
+    actionCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionLabel: {
+      ...typography.label,
+      color: colors.text,
+      marginTop: spacing.xs,
+    },
+  });
 
   return (
     <Screen>
@@ -420,200 +627,3 @@ export default function PreviewScreen({ route, navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  editRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
-  },
-  label: {
-    ...typography.label,
-    color: colors.text,
-  },
-  inputWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderWidth: 1,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-  },
-  input: {
-    flex: 1,
-    minWidth: 0,
-    padding: 0,
-    ...typography.body,
-  },
-  nameDisplay: {
-    flex: 1,
-    minWidth: 0,
-    ...typography.body,
-  },
-  extension: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  previewList: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    gap: spacing.md,
-    alignItems: 'center',
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  previewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginRight: spacing.md,
-    ...shadow,
-  },
-  pageShareButton: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
-  previewImage: {
-    width: 220,
-    height: 300,
-    borderRadius: radius.sm,
-    backgroundColor: colors.border,
-  },
-  previewLabel: {
-    ...typography.label,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  reduceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingBottom: spacing.md,
-  },
-  reduceText: {
-    ...typography.label,
-    color: colors.accent,
-  },
-  reducePanel: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    ...shadow,
-  },
-  reduceLoading: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    gap: spacing.sm,
-  },
-  reduceLoadingText: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  presetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-  },
-  presetRowActive: {
-    backgroundColor: colors.accentSoft,
-  },
-  presetLabel: {
-    ...typography.body,
-    fontFamily: 'Nunito-Bold',
-  },
-  presetSize: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  cancelText: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  watermarkInput: {
-    ...typography.body,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  watermarkActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  watermarkCancelButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  watermarkApplyButton: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    minWidth: 72,
-    alignItems: 'center',
-  },
-  watermarkApplyDisabled: {
-    opacity: 0.4,
-  },
-  watermarkApplyText: {
-    ...typography.button,
-    color: colors.white,
-  },
-  buttonBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.lg,
-    ...shadow,
-  },
-  actionItem: {
-    alignItems: 'center',
-  },
-  actionCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionLabel: {
-    ...typography.label,
-    color: colors.text,
-    marginTop: spacing.xs,
-  },
-});

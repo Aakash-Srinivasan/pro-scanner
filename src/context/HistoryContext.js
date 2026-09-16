@@ -49,14 +49,22 @@ export function HistoryProvider({ children }) {
       const entryDir = `${HISTORY_DIR}${id}/`;
       await FileSystem.makeDirectoryAsync(entryDir, { intermediates: true });
 
-      const storedPdfUri = `${entryDir}document.pdf`;
-      await FileSystem.copyAsync({ from: pdfUri, to: storedPdfUri });
-
+      let storedPdfUri;
       const storedPageUris = [];
-      for (let i = 0; i < pageUris.length; i++) {
-        const dest = `${entryDir}page-${i}.jpg`;
-        await FileSystem.copyAsync({ from: pageUris[i], to: dest });
-        storedPageUris.push(dest);
+      try {
+        storedPdfUri = `${entryDir}document.pdf`;
+        await FileSystem.copyAsync({ from: pdfUri, to: storedPdfUri });
+
+        for (let i = 0; i < pageUris.length; i++) {
+          const dest = `${entryDir}page-${i}.jpg`;
+          await FileSystem.copyAsync({ from: pageUris[i], to: dest });
+          storedPageUris.push(dest);
+        }
+      } catch (error) {
+        // Don't leave a half-written entry folder behind if a copy fails
+        // partway through (e.g. a source file disappearing mid-loop).
+        FileSystem.deleteAsync(entryDir, { idempotent: true }).catch(() => {});
+        throw error;
       }
 
       const entry = {
@@ -88,14 +96,20 @@ export function HistoryProvider({ children }) {
       await FileSystem.deleteAsync(entryDir, { idempotent: true }).catch(() => {});
       await FileSystem.makeDirectoryAsync(entryDir, { intermediates: true });
 
-      const storedPdfUri = `${entryDir}document.pdf`;
-      await FileSystem.copyAsync({ from: pdfUri, to: storedPdfUri });
-
+      let storedPdfUri;
       const storedPageUris = [];
-      for (let i = 0; i < pageUris.length; i++) {
-        const dest = `${entryDir}page-${i}.jpg`;
-        await FileSystem.copyAsync({ from: pageUris[i], to: dest });
-        storedPageUris.push(dest);
+      try {
+        storedPdfUri = `${entryDir}document.pdf`;
+        await FileSystem.copyAsync({ from: pdfUri, to: storedPdfUri });
+
+        for (let i = 0; i < pageUris.length; i++) {
+          const dest = `${entryDir}page-${i}.jpg`;
+          await FileSystem.copyAsync({ from: pageUris[i], to: dest });
+          storedPageUris.push(dest);
+        }
+      } catch (error) {
+        FileSystem.deleteAsync(entryDir, { idempotent: true }).catch(() => {});
+        throw error;
       }
 
       const updated = {

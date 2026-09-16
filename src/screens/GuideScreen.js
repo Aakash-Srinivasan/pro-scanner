@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { RFValue } from 'react-native-responsive-fontsize';
 import Constants from 'expo-constants';
 import Screen from '../components/Screen';
 import Header from '../components/Header';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 // Read from app.json rather than hardcoded, so this can never drift out of
 // sync with the version actually configured for the current build.
@@ -72,10 +72,21 @@ const FEATURES = [
     icon: 'time-outline',
     title: 'History',
     steps: [
+      'Tap See All next to Recent on the Home screen to open your full History.',
       'Every finished scan is saved here automatically.',
       'Use the search bar to find a scan by name.',
       'Tap the checkbox icon to select multiple scans and Merge them into one PDF.',
       'Tap the pencil on a scan to edit its pages, or the trash icon to delete it.',
+    ],
+  },
+  {
+    icon: 'cloud-upload-outline',
+    title: 'Back Up & Restore History',
+    steps: [
+      'From Home, tap Backup & Restore.',
+      'Tap Create Backup to bundle every saved scan into a single file, then save or share it anywhere.',
+      'On another device (or after reinstalling), tap Choose Backup File to bring those scans back into History.',
+      'Restoring only adds scans - it never deletes anything already in your History.',
     ],
   },
   {
@@ -136,11 +147,18 @@ const FAQS = [
   },
   {
     q: 'Is Dark Mode available?',
-    a: "Not yet - it's planned for a future update.",
+    a: 'Yes. Use the Appearance section at the top of this screen to switch between Light, Dark, or match your device\'s system setting.',
   },
 ];
 
 function FeatureCard({ icon, title, steps }) {
+  const theme = useTheme();
+  const { colors } = theme;
+  // Memoized since FeatureCard/FaqItem render up to ~16 times in this
+  // screen's lists - without this, tapping one FAQ to expand it (which
+  // re-renders the whole list) would rebuild every instance's full
+  // stylesheet from scratch on every single tap.
+  const styles = useMemo(() => buildStyles(theme), [theme]);
   return (
     <View style={styles.featureCard}>
       <View style={styles.featureHeader}>
@@ -160,6 +178,13 @@ function FeatureCard({ icon, title, steps }) {
 }
 
 function FaqItem({ q, a, isOpen, onToggle }) {
+  const theme = useTheme();
+  const { colors } = theme;
+  // Memoized since FeatureCard/FaqItem render up to ~16 times in this
+  // screen's lists - without this, tapping one FAQ to expand it (which
+  // re-renders the whole list) would rebuild every instance's full
+  // stylesheet from scratch on every single tap.
+  const styles = useMemo(() => buildStyles(theme), [theme]);
   return (
     <TouchableOpacity style={styles.faqItem} onPress={onToggle} activeOpacity={0.7}>
       <View style={styles.faqQuestionRow}>
@@ -171,7 +196,20 @@ function FaqItem({ q, a, isOpen, onToggle }) {
   );
 }
 
+const THEME_OPTIONS = [
+  { key: 'system', label: 'System', icon: 'phone-portrait-outline' },
+  { key: 'light', label: 'Light', icon: 'sunny-outline' },
+  { key: 'dark', label: 'Dark', icon: 'moon-outline' },
+];
+
 export default function GuideScreen({ navigation }) {
+  const theme = useTheme();
+  const { colors, themePreference, setThemePreference } = theme;
+  // Memoized since FeatureCard/FaqItem render up to ~16 times in this
+  // screen's lists - without this, tapping one FAQ to expand it (which
+  // re-renders the whole list) would rebuild every instance's full
+  // stylesheet from scratch on every single tap.
+  const styles = useMemo(() => buildStyles(theme), [theme]);
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
 
   const toggleFaq = (index) => {
@@ -183,6 +221,25 @@ export default function GuideScreen({ navigation }) {
       <Header title="Help & Guide" onBack={() => navigation.goBack()} />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>Everything Pro Scanner can do, in one place.</Text>
+
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={styles.themeGroup}>
+          {THEME_OPTIONS.map((option) => {
+            const isActive = themePreference === option.key;
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={[styles.themeOption, isActive && styles.themeOptionActive]}
+                onPress={() => setThemePreference(option.key)}
+              >
+                <Ionicons name={option.icon} size={20} color={isActive ? colors.accent : colors.textMuted} />
+                <Text style={[styles.themeOptionText, isActive && styles.themeOptionTextActive]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {FEATURES.map((feature) => (
           <FeatureCard key={feature.title} {...feature} />
@@ -207,7 +264,7 @@ export default function GuideScreen({ navigation }) {
           <Text style={styles.aboutDeveloper}>Made by {DEVELOPER_NAME}</Text>
           {DEVELOPER_WEBSITE && (
             <TouchableOpacity onPress={() => Linking.openURL(DEVELOPER_WEBSITE)}>
-              <Text style={styles.aboutLink}>{DEVELOPER_WEBSITE}</Text>
+              <Text style={styles.aboutLink}>Contact Me</Text>
             </TouchableOpacity>
           )}
           {DEVELOPER_CONTACT && (
@@ -221,7 +278,11 @@ export default function GuideScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+// Shared by GuideScreen and its two list-item components (FeatureCard,
+// FaqItem) since those are separate top-level components, not nested inside
+// GuideScreen's own function body, and so can't close over a local `styles`.
+function buildStyles({ colors, spacing, radius, typography, shadow }) {
+  return StyleSheet.create({
   scrollView: {
     flex: 1,
   },
@@ -232,6 +293,37 @@ const styles = StyleSheet.create({
   intro: {
     ...typography.subtitle,
     marginBottom: spacing.lg,
+  },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  themeGroup: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  themeOption: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+  },
+  themeOptionActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  themeOptionText: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  themeOptionTextActive: {
+    color: colors.accent,
   },
   featureCard: {
     backgroundColor: colors.surface,
@@ -334,4 +426,5 @@ const styles = StyleSheet.create({
     color: colors.accent,
     marginTop: spacing.xs,
   },
-});
+  });
+}

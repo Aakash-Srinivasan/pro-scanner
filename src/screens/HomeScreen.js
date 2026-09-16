@@ -6,7 +6,7 @@ import Screen from '../components/Screen';
 import { useScanSession } from '../context/ScanSessionContext';
 import { useHistory } from '../context/HistoryContext';
 import { formatShortDate } from '../utils/historyGroups';
-import { colors, spacing, radius, typography, shadow } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const RECENT_COUNT = 4;
 
@@ -25,10 +25,10 @@ const PRIMARY_ACTION = {
 
 const SECONDARY_ACTIONS = [
   {
-    key: 'history',
-    icon: 'time',
-    title: 'History',
-    getSubtitle: (count) => `${count} saved scan${count === 1 ? '' : 's'}`,
+    key: 'backup',
+    icon: 'cloud-upload-outline',
+    title: 'Backup & Restore',
+    getSubtitle: () => 'Keep your History safe',
   },
   {
     key: 'compress',
@@ -61,6 +61,7 @@ function chunkPairs(items) {
 export default function HomeScreen({ navigation }) {
   const { pages, restored, clearSession } = useScanSession();
   const { history } = useHistory();
+  const { colors, spacing, radius, typography, shadow, isDark, setThemePreference } = useTheme();
   const promptedRef = useRef(false);
 
   // If the app was backgrounded or killed mid-scan, ScanSessionContext
@@ -89,7 +90,7 @@ export default function HomeScreen({ navigation }) {
 
   const handleQuickAction = (key) => {
     if (key === 'scan') startScan();
-    else if (key === 'history') goToHistory();
+    else if (key === 'backup') navigation.navigate('BackupRestore');
     else if (key === 'compress') navigation.navigate('PdfCompressor');
     else if (key === 'sign') navigation.navigate('SignPdf');
     else if (key === 'barcode') navigation.navigate('Camera', { startInQrMode: true });
@@ -102,6 +103,205 @@ export default function HomeScreen({ navigation }) {
   // changed (the history list), not every unrelated state update.
   const recent = useMemo(() => history.slice(0, RECENT_COUNT), [history]);
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: spacing.xl,
+      paddingHorizontal: spacing.xl,
+    },
+    brand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+    },
+    themeSwitch: {
+      flexDirection: 'row',
+      backgroundColor: colors.border,
+      borderRadius: radius.pill,
+      padding: 3,
+      gap: 2,
+    },
+    themeSwitchOption: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    themeSwitchOptionActive: {
+      backgroundColor: colors.accent,
+    },
+    brandIcon: {
+      width: 30,
+      height: 30,
+    },
+    title: {
+      ...typography.title,
+      fontSize: RFValue(20),
+    },
+    subtitle: {
+      ...typography.subtitle,
+      fontSize: RFValue(13),
+      marginTop: 1,
+    },
+    quickActions: {
+      paddingHorizontal: spacing.xl,
+      marginTop: spacing.xl,
+      gap: spacing.md,
+    },
+    secondaryRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    quickCardSpacer: {
+      flex: 1,
+    },
+    quickCard: {
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+    },
+    quickCardPrimary: {
+      backgroundColor: colors.accent,
+      overflow: 'hidden',
+      ...shadow,
+    },
+    quickCardWatermark: {
+      position: 'absolute',
+      top: -20,
+      right: -30,
+      width: 160,
+      height: 160,
+      opacity: 0.9,
+      tintColor: colors.white,
+    },
+    quickCardWatermarkSmall: {
+      position: 'absolute',
+      top: -14,
+      right: -18,
+      width: 90,
+      height: 90,
+      opacity: 0.14,
+      tintColor: colors.accent,
+    },
+    quickCardSecondary: {
+      // Only the secondary cards need flex:1 - they're the ones sharing a
+      // row and need to divide its width evenly. The primary card is a
+      // column's sole child, where flex:1 (flexBasis: 0%) would instead
+      // collapse its height to nothing since the column has no extra space
+      // to grow into.
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    quickIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
+    quickIconWrapPrimary: {
+      backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    },
+    quickTitle: {
+      ...typography.button,
+      fontSize: RFValue(14),
+      color: colors.text,
+    },
+    quickTitleOnAccent: {
+      color: colors.white,
+    },
+    quickSubtitle: {
+      ...typography.label,
+      fontFamily: 'Nunito-Regular',
+      color: colors.textMuted,
+      fontSize: RFValue(11),
+      marginTop: 2,
+    },
+    quickSubtitleOnAccent: {
+      color: 'rgba(255, 255, 255, 0.85)',
+    },
+    recentSection: {
+      marginTop: spacing.xl,
+    },
+    recentHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    recentTitle: {
+      ...typography.title,
+      fontSize: RFValue(16),
+    },
+    seeAll: {
+      ...typography.label,
+      color: colors.accent,
+    },
+    emptyState: {
+      alignItems: 'center',
+      paddingVertical: spacing.xxl,
+      paddingHorizontal: spacing.xxl,
+    },
+    emptyText: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    recentList: {
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      gap: spacing.md,
+      // Explicit (not relying on the row default of 'stretch'): each card
+      // sizes to its own content and never stretches to match the list's
+      // container height.
+      alignItems: 'flex-start',
+    },
+    recentCard: {
+      width: 110,
+      marginRight: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.xs,
+      ...shadow,
+    },
+    recentThumbnail: {
+      width: '100%',
+      aspectRatio: 4 / 4,
+      borderRadius: radius.sm,
+      backgroundColor: colors.border,
+    },
+    recentLabel: {
+      ...typography.label,
+      marginTop: spacing.xs,
+      textAlign: 'center',
+    },
+    recentDate: {
+      ...typography.label,
+      fontFamily: 'Nunito-Regular',
+      color: colors.textMuted,
+      fontSize: RFValue(11),
+      textAlign: 'center',
+    },
+  });
+
   return (
     <Screen style={styles.container}>
       <View style={styles.header}>
@@ -112,12 +312,34 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.subtitle}>Digitize your Docs</Text>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Guide')}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Ionicons name="information-circle-outline" size={26} color={colors.textMuted} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {/* Segmented quick-switch: tapping either side sets that mode
+              directly, bypassing "system" - the full Light/Dark/System
+              picker lives on the Guide screen for anyone who wants to
+              follow the OS setting instead. */}
+          <View style={styles.themeSwitch}>
+            <TouchableOpacity
+              style={[styles.themeSwitchOption, !isDark && styles.themeSwitchOptionActive]}
+              onPress={() => setThemePreference('light')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <Ionicons name="sunny" size={16} color={!isDark ? colors.white : colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeSwitchOption, isDark && styles.themeSwitchOptionActive]}
+              onPress={() => setThemePreference('dark')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <Ionicons name="moon" size={16} color={isDark ? colors.white : colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Guide')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="information-circle-outline" size={26} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
       </View>
       <ScrollView style={styles.scrollView}>
         <>
@@ -175,11 +397,13 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.recentSection}>
             <View style={styles.recentHeader}>
               <Text style={styles.recentTitle}>Recent</Text>
-              {history.length > 0 && (
-                <TouchableOpacity onPress={goToHistory}>
-                  <Text style={styles.seeAll}>See All</Text>
-                </TouchableOpacity>
-              )}
+              {/* Always shown (not gated on history.length) - with the
+                  History quick-action card gone (redundant with this link),
+                  this is the only way to reach History when there are zero
+                  scans yet; History has its own proper empty state. */}
+              <TouchableOpacity onPress={goToHistory}>
+                <Text style={styles.seeAll}>See All</Text>
+              </TouchableOpacity>
             </View>
 
             {recent.length === 0 ? (
@@ -209,180 +433,3 @@ export default function HomeScreen({ navigation }) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.xl,
-    paddingHorizontal: spacing.xl,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  brandIcon: {
-    width: 30,
-    height: 30,
-  },
-  title: {
-    ...typography.title,
-    fontSize: RFValue(20),
-  },
-  subtitle: {
-    ...typography.subtitle,
-    fontSize: RFValue(13),
-    marginTop: 1,
-  },
-  quickActions: {
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.xl,
-    gap: spacing.md,
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  quickCardSpacer: {
-    flex: 1,
-  },
-  quickCard: {
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  quickCardPrimary: {
-    backgroundColor: colors.accent,
-    overflow: 'hidden',
-    ...shadow,
-  },
-  quickCardWatermark: {
-    position: 'absolute',
-    top: -20,
-    right: -30,
-    width: 160,
-    height: 160,
-    opacity: 0.18,
-    tintColor: colors.white,
-  },
-  quickCardWatermarkSmall: {
-    position: 'absolute',
-    top: -14,
-    right: -18,
-    width: 90,
-    height: 90,
-    opacity: 0.14,
-    tintColor: colors.accent,
-  },
-  quickCardSecondary: {
-    // Only the secondary cards need flex:1 - they're the ones sharing a
-    // row and need to divide its width evenly. The primary card is a
-    // column's sole child, where flex:1 (flexBasis: 0%) would instead
-    // collapse its height to nothing since the column has no extra space
-    // to grow into.
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  quickIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  quickIconWrapPrimary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-  },
-  quickTitle: {
-    ...typography.button,
-    fontSize: RFValue(14),
-    color: colors.text,
-  },
-  quickTitleOnAccent: {
-    color: colors.white,
-  },
-  quickSubtitle: {
-    ...typography.label,
-    fontFamily: 'Nunito-Regular',
-    color: colors.textMuted,
-    fontSize: RFValue(11),
-    marginTop: 2,
-  },
-  quickSubtitleOnAccent: {
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-  recentSection: {
-    marginTop: spacing.xxl,
-  },
-  recentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  recentTitle: {
-    ...typography.title,
-    fontSize: RFValue(16),
-  },
-  seeAll: {
-    ...typography.label,
-    color: colors.accent,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xxl,
-  },
-  emptyText: {
-    ...typography.subtitle,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  recentList: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-    // Explicit (not relying on the row default of 'stretch'): each card
-    // sizes to its own content and never stretches to match the list's
-    // container height.
-    alignItems: 'flex-start',
-  },
-  recentCard: {
-    width: 110,
-    marginRight: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.xs,
-    ...shadow,
-  },
-  recentThumbnail: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: radius.sm,
-    backgroundColor: colors.border,
-  },
-  recentLabel: {
-    ...typography.label,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  recentDate: {
-    ...typography.label,
-    fontFamily: 'Nunito-Regular',
-    color: colors.textMuted,
-    fontSize: RFValue(11),
-    textAlign: 'center',
-  },
-});

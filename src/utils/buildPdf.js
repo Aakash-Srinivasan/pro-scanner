@@ -6,10 +6,11 @@ const PDF_PAGE_SHORT_SIDE = 612; // matches a standard Letter page width in poin
 // Builds a multi-page PDF from a list of scan-session pages, sizing each page
 // to the photo's own aspect ratio so landscape photos don't leave blank space
 // on a fixed portrait page (see history of this file for the original bug).
-export async function buildPdfFromPages(pages) {
+export async function buildPdfFromPages(pages, onProgress) {
   const pdfDoc = await PDFDocument.create();
 
-  for (const page of pages) {
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
     const uri = page.processedUri || page.uri;
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
@@ -28,6 +29,7 @@ export async function buildPdfFromPages(pages) {
       width: pageWidth,
       height: pageHeight,
     });
+    onProgress?.(i + 1, pages.length);
   }
 
   return pdfDoc.saveAsBase64();

@@ -35,17 +35,19 @@ Built and tested entirely through **Expo Go** (no custom native code, no dev cli
 - Share a single page as a JPEG, separate from the whole PDF
 - Save (direct to a folder on Android, share sheet elsewhere), Share, or Download
 
-**History**
+**History** (reached via "See All" next to Recent on Home)
 - Every finished scan is saved automatically, with thumbnails and page counts
 - Search by name, switch between grid/list view, grouped by date
 - Select multiple scans and merge them into one PDF
 - Edit an already-saved scan's pages (updates that entry in place, doesn't duplicate it)
+- **Backup & Restore** — bundles every entry (PDF + page images + metadata) into a single `.zip` via `jszip` (pure JS, no native module), for saving to a cloud drive/another device and restoring later. Restoring only adds scans; it never deletes anything.
 
 **Standalone tools** (work on *any* PDF on your device, not just ones scanned by this app)
 - **Compress PDF** — pick any PDF, shrink it. Works by rendering each page to an image with pdf.js and rebuilding the PDF from those images, since there's no native PDF-editing library available in Expo Go. This means a PDF with real, selectable text will lose that selectability after compression — it's best suited for scanned/photographed PDFs.
 - **Sign PDF** — pick any PDF, draw a signature on a canvas, then drag it to wherever you want on a preview of the last page before applying it. The drawing canvas is a visible `WebView` (not hidden like the others) — HTML5 canvas is the only freehand-drawing surface available without a native module. The page preview reuses the same rasterization approach as Compress PDF.
 
 **Other**
+- Dark Mode — Light/Dark/System, switchable from the Appearance section on the Help & Guide screen, persisted across restarts
 - In-app Help & Guide (info icon on Home) — full feature walkthrough plus an FAQ, and an About section (app version, developer credit)
 - First-run onboarding carousel, first-run coach marks on the Camera screen
 
@@ -62,6 +64,8 @@ src/
   context/
     ScanSessionContext.js   In-progress scan state (pages being worked on right now)
     HistoryContext.js       Saved scans, persisted to AsyncStorage + file storage
+    ThemeContext.js         Light/Dark/System theme - colors, spacing, typography,
+                             shadows all live here now (see note below)
   utils/
     buildPdf.js             Assembles a PDF from a list of page images
     ImageProcessor.js       Perspective warp + JPEG recompression (hidden WebView)
@@ -70,13 +74,15 @@ src/
     PdfPagePreview.js         Renders a single PDF page to a picture (hidden WebView)
     pdfjsLibSource.js        pdf.js library, embedded as a plain string
     pdfjsWorkerSource.js      (auto-generated — see note below)
-    pickPdfFile.js           Shared "pick a PDF reliably" helper (works around
-                              an Android quirk between expo-document-picker
-                              and expo-file-system)
+    pickFile.js              Generic version of the "pick a file reliably" helper
+    pickPdfFile.js           PDF-specific wrapper around pickFile.js
+    historyBackup.js         Zips/unzips a full History backup (via jszip)
     watermarkPdf.js          Stamps text onto an existing PDF's pages
-    theme.js                 Colors, spacing, typography, shadows — single
-                              source of truth for the app's look
 ```
+
+### A note on the theme architecture
+
+`ThemeContext.js` replaced the old static `theme.js`. Every screen now calls `useTheme()` to get the live `colors`/`spacing`/`radius`/`typography`/`shadow` for whichever mode is active, and builds its `StyleSheet.create(...)` *inside* the component (not at module load time), so it recomputes whenever the theme changes. A few screens have small standalone sub-components (e.g. `PageEditScreen.js`'s `Edge`/`Handle`, `GuideScreen.js`'s `FeatureCard`/`FaqItem`) that call `useTheme()` themselves rather than inheriting it, since they aren't nested inside their parent screen's own function body. The theme choice (Light/Dark/System) is set from the Appearance section on the Help & Guide screen and persisted via AsyncStorage.
 
 ### A note on `pdfjsLibSource.js` / `pdfjsWorkerSource.js`
 
@@ -111,7 +117,6 @@ This uploads to Expo's build servers and gives you a shareable install link when
 
 ## Known Limitations
 
-- **Dark Mode** — not implemented yet. `theme.js` is centralized, which makes this easier later, but every screen's styles currently import it statically rather than reading from a live theme context.
 - **Compress PDF** flattens pages to images — any real, selectable text in the original PDF is lost. Works best on scanned/photographed documents.
 - **Native PDF libraries** (e.g. `@kishannareshpal/expo-pdf`, `react-native-pdf`) ship real Android/iOS native code and cannot run inside Expo Go — they require switching this project to a custom development build (`expo prebuild` + `eas build --profile development`), which drops plain Expo Go support for the whole app, not just one screen. Deferred to the planned React Native CLI rebuild.
 - **iOS beta distribution** isn't set up — that needs an Apple Developer account and TestFlight, unlike Android's direct-APK sideloading.
