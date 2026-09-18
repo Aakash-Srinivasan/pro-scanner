@@ -159,6 +159,8 @@ export default function CameraScreen({ navigation, route }) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: spacing.xl,
+      paddingTop: insets.top + spacing.xl,
+      paddingBottom: insets.bottom + spacing.xl,
     },
     coachCard: {
       backgroundColor: colors.surface,
